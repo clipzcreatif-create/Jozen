@@ -155,7 +155,7 @@
 
         // --- LOGIN COMPONENT ---
         const LoginScreen = ({ onLogin, clients }) => {
-            const [role, setRole] = useState('admin'); 
+            const [role, setRole] = useState('client'); // Default ke Client
             const [username, setUsername] = useState('');
             const [error, setError] = useState('');
 
@@ -190,18 +190,13 @@
                     <div className="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10">
                         <div className="text-center mb-8">
                             <h1 className="text-4xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent inline-block">Jozen</h1>
-                            <p className="text-zinc-500 text-xs font-bold tracking-[0.2em] uppercase">Private Dashboard</p>
+                            <p className="text-zinc-500 text-xs font-bold tracking-[0.2em] uppercase">
+                                {role === 'admin' ? 'Admin Access' : 'Private Dashboard'}
+                            </p>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                                <button type="button" onClick={() => setRole('admin')} className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${role === 'admin' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                                    <Lock size={16} /> <span className="text-sm font-semibold">Admin</span>
-                                </button>
-                                <button type="button" onClick={() => setRole('client')} className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${role === 'client' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                                    <User size={16} /> <span className="text-sm font-semibold">Client</span>
-                                </button>
-                            </div>
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            {/* TOMBOL KIRI KANAN DIHILANGKAN, LANGSUNG INPUT */}
 
                             <div>
                                 <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
@@ -222,8 +217,19 @@
                             </div>
 
                             <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 active:scale-[0.98]">
-                                {role === 'admin' ? 'Unlock System' : 'Access Dashboard'}
+                                {role === 'admin' ? 'Unlock System' : 'Masuk Dashboard'}
                             </button>
+
+                            {/* TOGGLE ADMIN TERSEMBUNYI DI BAWAH */}
+                            <div className="text-center pt-2">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setRole(prev => prev === 'client' ? 'admin' : 'client')}
+                                    className="text-[10px] text-zinc-600 hover:text-indigo-400 transition-colors cursor-pointer"
+                                >
+                                    {role === 'client' ? 'Anda Admin? Klik disini' : '← Kembali ke Client Login'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -345,6 +351,11 @@
             
             const handleRevertTask = async (task) => {
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(task.id).update({ status: 'pending', completedAt: null });
+            };
+
+            const handleDeleteTask = async (taskId) => {
+                if(!confirm("Yakin hapus tugas ini?")) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(taskId).delete();
             };
 
             const handleLogout = () => {
