@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jozen (JokiWithZen) - Dashboard</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body {
+            background-color: #09090b; /* Zinc 950 */
+            color: #f4f4f5; /* Zinc 100 */
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-input {
+            background: rgba(39, 39, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.2s;
+        }
+        .glass-input:focus {
+            background: rgba(39, 39, 42, 0.8);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Date Picker Dark Mode Override */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animation-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+            20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- KONFIGURASI FIREBASE ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'joki-app-default';
+
+        // --- ICONS ---
+        const { useState, useEffect, useMemo } = React;
+        
+        const IconBase = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+
+        const Icons = {
+            LayoutDashboard: (props) => <IconBase {...props}><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></IconBase>,
+            Users: (props) => <IconBase {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></IconBase>,
+            CheckCircle2: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></IconBase>,
+            Clock: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></IconBase>,
+            Plus: (props) => <IconBase {...props}><path d="M5 12h14" /><path d="M12 5v14" /></IconBase>,
+            Trash2: (props) => <IconBase {...props}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></IconBase>,
+            ExternalLink: (props) => <IconBase {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" x2="21" y1="14" y2="3" /></IconBase>,
+            LogOut: (props) => <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></IconBase>,
+            FileText: (props) => <IconBase {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><line x1="10" x2="8" y1="9" y2="9" /></IconBase>,
+            ChevronRight: (props) => <IconBase {...props}><path d="m9 18 6-6-6-6" /></IconBase>,
+            User: (props) => <IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></IconBase>,
+            Lock: (props) => <IconBase {...props}><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>,
+            Zap: (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconBase>,
+            AlertTriangle: (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></IconBase>,
+            Calendar: (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></IconBase>,
+            Coins: (props) => <IconBase {...props}><circle cx="8" cy="8" r="6" /><path d="M18.09 10.37A6 6 0 1 1 10.34 18" /><path d="M7 6h1v4" /><path d="m16.71 13.88.7.71-2.82 2.82" /></IconBase>
+        };
+
+        const { LayoutDashboard, Users, CheckCircle2, Clock, Plus, Trash2, ExternalLink, LogOut, FileText, ChevronRight, User, Lock, Zap, AlertTriangle, Calendar, Coins } = Icons;
+
+        // --- UTILS ---
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        };
+
+        const getDaysRemaining = (deadline) => {
+            if (!deadline) return null;
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Reset jam biar akurat per hari
+            const dead = new Date(deadline);
+            dead.setHours(0, 0, 0, 0);
+            
+            const diffTime = dead - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            return diffDays;
+        };
+
+        // --- LOGIN COMPONENT ---
+        const LoginScreen = ({ onLogin, clients }) => {
+            const [role, setRole] = useState('admin'); 
+            const [username, setUsername] = useState('');
+            const [error, setError] = useState('');
+
+            useEffect(() => { setUsername(''); setError(''); }, [role]);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                setError('');
+                const input = username.trim();
+
+                if (role === 'admin') {
+                    if (input === '10042006') {
+                        onLogin({ role: 'admin', name: 'Admin Zen' });
+                    } else {
+                        setError('Kode Keamanan Salah!');
+                    }
+                } else {
+                    // Cek apakah nama ada di database clients?
+                    const foundClient = clients.find(c => c.name.toLowerCase() === input.toLowerCase());
+                    
+                    if (foundClient) {
+                        // SUKSES: Login sebagai client, simpan ID nya juga
+                        onLogin({ role: 'client', name: foundClient.name, id: foundClient.id });
+                    } else {
+                        setError('Nama client tidak terdaftar di database.');
+                    }
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-[#09090b] p-6 relative overflow-hidden">
+                    <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-violet-900/10 rounded-full blur-[100px]"></div>
+
+                    <div className="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent inline-block">Jozen</h1>
+                            <p className="text-zinc-500 text-xs font-bold tracking-[0.2em] uppercase">Private Dashboard</p>
+                        </div>
+
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                                <button type="button" onClick={() => setRole('admin')} className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${role === 'admin' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                                    <Lock size={16} /> <span className="text-sm font-semibold">Admin</span>
+                                </button>
+                                <button type="button" onClick={() => setRole('client')} className={`p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${role === 'client' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                                    <User size={16} /> <span className="text-sm font-semibold">Client</span>
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                                    {role === 'admin' ? 'Security Code' : 'Client Identity'}
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type={role === 'admin' ? "password" : "text"}
+                                        required
+                                        className={`w-full glass-input rounded-xl p-3.5 outline-none placeholder-zinc-600 ${error ? 'border-red-500/50' : ''}`}
+                                        placeholder={role === 'admin' ? "••••••••" : "Nama sesuai database..."}
+                                        value={username}
+                                        onChange={(e) => { setUsername(e.target.value); setError(''); }}
+                                    />
+                                    {error && <div className="absolute right-3 top-3.5 text-red-500 animate-shake"><AlertTriangle size={20} /></div>}
+                                </div>
+                                {error && <p className="text-red-400 text-xs mt-2 ml-1 font-medium animate-pulse">{error}</p>}
+                            </div>
+
+                            <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 active:scale-[0.98]">
+                                {role === 'admin' ? 'Unlock System' : 'Access Dashboard'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [user, setUser] = useState(null); 
+            const [authUser, setAuthUser] = useState(null);
+            const [clients, setClients] = useState([]);
+            const [tasks, setTasks] = useState([]);
+            
+            const [selectedClientId, setSelectedClientId] = useState(null);
+            const [viewMode, setViewMode] = useState('pending'); // pending | completed
+            
+            // Form States
+            const [newClientName, setNewClientName] = useState('');
+            const [newTaskTitle, setNewTaskTitle] = useState('');
+            const [newTaskPrice, setNewTaskPrice] = useState('');
+            const [newTaskDeadline, setNewTaskDeadline] = useState('');
+            const [editingTask, setEditingTask] = useState(null);
+            const [gdriveLink, setGdriveLink] = useState('');
+
+            // Init Auth & Data
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await auth.signInWithCustomToken(__initial_auth_token);
+                    } else {
+                        await auth.signInAnonymously();
+                    }
+                };
+                initAuth();
+                return auth.onAuthStateChanged((u) => setAuthUser(u));
+            }, []);
+
+            useEffect(() => {
+                if (!authUser) return;
+                const unsubClients = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients')
+                    .onSnapshot(snap => setClients(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => b.createdAt - a.createdAt)));
+                
+                const unsubTasks = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks')
+                    .onSnapshot(snap => setTasks(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
+                
+                return () => { unsubClients(); unsubTasks(); };
+            }, [authUser]);
+
+            // AUTO SELECT CLIENT ID if Logged in as Client
+            useEffect(() => {
+                if (user && user.role === 'client') {
+                    setSelectedClientId(user.id);
+                }
+            }, [user]);
+
+            // --- ACTIONS ---
+            const handleAddClient = async (e) => {
+                e.preventDefault();
+                if (!newClientName.trim() || !authUser) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients').add({ name: newClientName, createdAt: Date.now() });
+                setNewClientName('');
+            };
+
+            const handleDeleteClient = async (clientId) => {
+                if(!confirm("Hapus client ini?")) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients').doc(clientId).delete();
+                if (selectedClientId === clientId) setSelectedClientId(null);
+            };
+
+            const handleAddTask = async (e) => {
+                e.preventDefault();
+                if (!newTaskTitle.trim() || !selectedClientId || !authUser) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').add({
+                    clientId: selectedClientId,
+                    title: newTaskTitle,
+                    price: parseInt(newTaskPrice) || 0,
+                    deadline: newTaskDeadline || null,
+                    status: 'pending',
+                    gdriveLink: '',
+                    createdAt: Date.now()
+                });
+                setNewTaskTitle(''); setNewTaskPrice(''); setNewTaskDeadline('');
+            };
+
+            const handleCompleteTask = (task) => { setEditingTask(task); setGdriveLink(task.gdriveLink || ''); };
+
+            const saveTaskCompletion = async () => {
+                if (!editingTask) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(editingTask.id).update({
+                    status: 'completed',
+                    gdriveLink: gdriveLink,
+                    completedAt: Date.now()
+                });
+                setEditingTask(null); setGdriveLink('');
+            };
+            
+            const handleRevertTask = async (task) => {
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(task.id).update({ status: 'pending', completedAt: null });
+            };
+
+            const handleDeleteTask = async (taskId) => {
+                if(!confirm("Hapus tugas ini?")) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(taskId).delete();
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setSelectedClientId(null);
+                setViewMode('pending');
+            };
+
+            // --- FILTERING & STATS ---
+            const filteredTasks = useMemo(() => {
+                if (!selectedClientId) return [];
+                return tasks.filter(t => t.clientId === selectedClientId && t.status === viewMode);
+            }, [tasks, selectedClientId, viewMode]);
+
+            // Calculate Totals for Selected Client
+            const stats = useMemo(() => {
+                if (!selectedClientId) return { pending: 0, completed: 0 };
+                const clientTasks = tasks.filter(t => t.clientId === selectedClientId);
+                return {
+                    pending: clientTasks.filter(t => t.status === 'pending').reduce((acc, curr) => acc + (curr.price || 0), 0),
+                    completed: clientTasks.filter(t => t.status === 'completed').reduce((acc, curr) => acc + (curr.price || 0), 0)
+                };
+            }, [tasks, selectedClientId]);
+
+            const selectedClient = clients.find(c => c.id === selectedClientId);
+
+            // Jika belum login
+            if (!user) return <LoginScreen onLogin={setUser} clients={clients} />;
+
+            return (
+                <div className="flex h-screen overflow-hidden bg-[#09090b] text-zinc-100 font-sans selection:bg-indigo-500/30">
+                    
+                    {/* SIDEBAR (HANYA MUNCUL JIKA ADMIN) */}
+                    {user.role === 'admin' && (
+                        <aside className="w-72 bg-[#09090b] border-r border-zinc-800 flex flex-col hidden md:flex relative z-20">
+                            <div className="p-8 pb-4">
+                                <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent inline-block">Jozen</h2>
+                                <div className="mt-1 flex items-center gap-2 text-xs font-mono text-indigo-400">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> ADMIN MODE
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+                                <div className="px-4 mb-2"><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Clients Database</span></div>
+                                <form onSubmit={handleAddClient} className="mx-2 mb-6">
+                                    <div className="flex items-center bg-zinc-900 rounded-lg border border-zinc-800 focus-within:border-indigo-500/50 transition-all">
+                                        <input type="text" placeholder="Add Client..." className="flex-1 bg-transparent border-none text-sm px-3 py-2.5 text-zinc-300 outline-none" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
+                                        <button type="submit" className="pr-3 text-zinc-500 hover:text-indigo-400"><Plus size={16} /></button>
+                                    </div>
+                                </form>
+
+                                {clients.length === 0 ? <div className="px-4 py-8 text-center"><p className="text-zinc-600 text-sm">No clients.</p></div> : 
+                                    clients.map(client => (
+                                        <div key={client.id} onClick={() => setSelectedClientId(client.id)} className={`group relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 border ${selectedClientId === client.id ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-semibold shadow-lg' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
+                                            <div className="flex items-center gap-3 truncate">
+                                                <div className={`p-1.5 rounded-md ${selectedClientId === client.id ? 'bg-zinc-950/10 text-zinc-900' : 'bg-zinc-900 text-zinc-600 group-hover:text-zinc-400'}`}><Users size={14} /></div>
+                                                <span className="truncate text-sm">{client.name}</span>
+                                            </div>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id); }} className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all ${selectedClientId === client.id ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/20 text-red-500'}`}><Trash2 size={14} /></button>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                            <div className="p-4 border-t border-zinc-800 bg-[#09090b]">
+                                <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 w-full transition-colors text-sm font-medium"><LogOut size={18} /> Sign Out</button>
+                            </div>
+                        </aside>
+                    )}
+
+                    {/* MAIN CONTENT */}
+                    <main className="flex-1 flex flex-col bg-[#09090b] relative z-10 w-full">
+                        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
+
+                        {/* Mobile Header */}
+                        <div className="md:hidden p-4 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800 flex justify-between items-center sticky top-0 z-50">
+                            <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Jozen</span>
+                            <button onClick={handleLogout} className="text-zinc-400"><LogOut size={20} /></button>
+                        </div>
+
+                        {!selectedClientId ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600">
+                                <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 ring-1 ring-zinc-800"><Zap size={32} className="text-zinc-500" /></div>
+                                <h3 className="text-lg font-medium text-zinc-300">Welcome to Jozen</h3>
+                                <p className="text-sm mt-1">Select a client from the sidebar.</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* HEADER DASHBOARD */}
+                                <header className="p-6 md:p-8 pb-0 flex flex-col gap-6 relative">
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <h1 className="text-3xl font-bold text-white tracking-tight">{selectedClient?.name}</h1>
+                                                {user.role === 'client' && <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-wider">MY DASHBOARD</span>}
+                                            </div>
+                                            <p className="text-sm text-zinc-500">Project Overview</p>
+                                        </div>
+                                        
+                                        {/* STATS CARD */}
+                                        <div className="flex gap-3">
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-indigo-500">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Estimasi (Pending)</p>
+                                                <p className="text-sm font-mono text-indigo-400">{formatRupiah(stats.pending)}</p>
+                                            </div>
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-emerald-500">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Total (Done)</p>
+                                                <p className="text-sm font-mono text-emerald-400">{formatRupiah(stats.completed)}</p>
+                                            </div>
+                                            {user.role === 'client' && (
+                                                <button onClick={handleLogout} className="bg-zinc-800 p-3 rounded-xl hover:bg-zinc-700 text-zinc-400 md:hidden"><LogOut size={18} /></button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* TABS */}
+                                    <div className="flex bg-zinc-900/80 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm self-start">
+                                        <button onClick={() => setViewMode('pending')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'pending' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                                            <Clock size={16} className={viewMode === 'pending' ? 'text-indigo-400' : ''} /> Ongoing
+                                        </button>
+                                        <button onClick={() => setViewMode('completed')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'completed' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                                            <CheckCircle2 size={16} className={viewMode === 'completed' ? 'text-emerald-400' : ''} /> Done
+                                        </button>
+                                    </div>
+                                </header>
+
+                                <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6 pb-20">
+                                    {/* ADD TASK FORM (ADMIN ONLY) */}
+                                    {user.role === 'admin' && viewMode === 'pending' && (
+                                        <form onSubmit={handleAddTask} className="glass-panel p-3 rounded-2xl mb-8 flex flex-col gap-3 shadow-lg shadow-black/20">
+                                            <div className="flex flex-col md:flex-row gap-3">
+                                                <input type="text" placeholder="Tugas apa nih?" className="flex-[2] bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
+                                                <input type="number" placeholder="Harga (Rp)" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm font-mono border border-transparent focus:border-indigo-500/50" value={newTaskPrice} onChange={(e) => setNewTaskPrice(e.target.value)} />
+                                                <div className="flex-1 relative">
+                                                    <input type="date" className="w-full bg-zinc-900/50 rounded-xl p-3 px-4 text-white outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} />
+                                                </div>
+                                            </div>
+                                            <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white w-full py-2.5 rounded-xl font-medium transition-all text-sm shadow-lg shadow-indigo-900/30">Add Task</button>
+                                        </form>
+                                    )}
+
+                                    {/* TASK LIST */}
+                                    <div className="space-y-3">
+                                        {filteredTasks.length === 0 ? (
+                                            <div className="text-center py-20 border border-dashed border-zinc-800 rounded-3xl opacity-50"><p className="text-zinc-500 text-sm">Kosong melompong.</p></div>
+                                        ) : (
+                                            filteredTasks.map(task => {
+                                                const daysLeft = getDaysRemaining(task.deadline);
+                                                let dateColor = "text-zinc-500";
+                                                let dateText = "";
+                                                
+                                                if (task.status === 'pending' && daysLeft !== null) {
+                                                    if (daysLeft < 0) { dateColor = "text-red-400"; dateText = `Telat ${Math.abs(daysLeft)} hari`; }
+                                                    else if (daysLeft === 0) { dateColor = "text-amber-400"; dateText = "Deadline Hari Ini!"; }
+                                                    else if (daysLeft <= 2) { dateColor = "text-amber-400"; dateText = `${daysLeft} Hari Lagi`; }
+                                                    else { dateColor = "text-emerald-400"; dateText = `${daysLeft} Hari Lagi`; }
+                                                }
+
+                                                return (
+                                                    <div key={task.id} className="group bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/50 hover:border-zinc-700/50 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-200">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className={`mt-1 p-2 rounded-full ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                                                                    {task.status === 'completed' ? <CheckCircle2 size={18} /> : <FileText size={18} />}
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className={`font-medium text-base truncate pr-4 ${task.status === 'completed' ? 'text-zinc-500 line-through decoration-zinc-700' : 'text-zinc-200'}`}>{task.title}</h3>
+                                                                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-medium">
+                                                                        {task.price > 0 && <span className="text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded">{formatRupiah(task.price)}</span>}
+                                                                        
+                                                                        {task.deadline && task.status === 'pending' && (
+                                                                            <span className={`flex items-center gap-1 ${dateColor} bg-zinc-800/50 px-2 py-0.5 rounded border border-white/5`}>
+                                                                                <Calendar size={12} /> {dateText} ({new Date(task.deadline).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})})
+                                                                            </span>
+                                                                        )}
+                                                                        
+                                                                        <span className="text-zinc-600">{new Date(task.createdAt).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {task.status === 'completed' && task.gdriveLink && (
+                                                                <div className="mt-4 ml-12">
+                                                                    <a href={task.gdriveLink.startsWith('http') ? task.gdriveLink : `https://${task.gdriveLink}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium hover:underline decoration-indigo-500/30 underline-offset-4 transition-all">
+                                                                        <ExternalLink size={14} /> Download File / Link
+                                                                    </a>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 w-full md:w-auto justify-end pl-12 md:pl-0">
+                                                            {user.role === 'admin' && (
+                                                                <>
+                                                                    {task.status === 'pending' ? (
+                                                                        <button onClick={() => handleCompleteTask(task)} className="flex items-center gap-2 bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-white/5">Finish <ChevronRight size={14} /></button>
+                                                                    ) : (
+                                                                        <button onClick={() => handleRevertTask(task)} className="text-xs text-zinc-600 hover:text-zinc-400 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors">Undo</button>
+                                                                    )}
+                                                                    <button onClick={() => handleDeleteTask(task.id)} className="p-2 text-zinc-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                                                                </>
+                                                            )}
+                                                            {user.role === 'client' && task.status === 'completed' && !task.gdriveLink && (
+                                                                <span className="text-xs bg-amber-500/10 text-amber-500 px-3 py-1 rounded-full border border-amber-500/20">Processing File...</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        
+                        {/* Modal Task Completion */}
+                        {editingTask && (
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+                                <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-md shadow-2xl border border-zinc-800 animation-fade-in-up">
+                                    <h3 className="text-lg font-bold text-white mb-1">Submit Result</h3>
+                                    <p className="text-zinc-500 text-sm mb-6">Attach file link for <span className="text-indigo-400">{editingTask.title}</span></p>
+                                    <div className="mb-6">
+                                        <div className="flex items-center glass-input rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
+                                            <div className="pl-4 text-zinc-500"><ExternalLink size={18} /></div>
+                                            <input type="text" className="w-full bg-transparent p-4 text-white outline-none placeholder-zinc-600 text-sm" placeholder="Paste GDrive / Dropbox Link..." value={gdriveLink} onChange={(e) => setGdriveLink(e.target.value)} autoFocus />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-3">
+                                        <button onClick={() => { setEditingTask(null); setGdriveLink(''); }} className="px-5 py-2.5 text-zinc-400 hover:text-white rounded-xl text-sm font-medium transition-colors">Cancel</button>
+                                        <button onClick={saveTaskCompletion} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors text-sm shadow-lg shadow-indigo-900/40">Mark as Done</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                    
+                    {/* LOGOUT BUTTON FOR CLIENT (FLOATING ON MOBILE/DESKTOP ALTERNATIVE) */}
+                    {user.role === 'client' && (
+                        <div className="fixed bottom-6 right-6 z-50 md:hidden">
+                            <button onClick={handleLogout} className="bg-zinc-800 text-white p-4 rounded-full shadow-2xl border border-zinc-700 hover:bg-zinc-700 transition-all"><LogOut size={24} /></button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
