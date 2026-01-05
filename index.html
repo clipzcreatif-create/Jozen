@@ -97,13 +97,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .animation-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-            20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
     </style>
 </head>
 <body>
@@ -173,17 +166,26 @@
             CreditCard: (props) => <IconBase {...props}><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></IconBase>,
             Check: (props) => <IconBase {...props}><path d="M20 6 9 17l-5-5" /></IconBase>,
             XCircle: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></IconBase>,
-            TrendingUp: (props) => <IconBase {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></IconBase>
+            TrendingUp: (props) => <IconBase {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></IconBase>,
+            Pencil: (props) => <IconBase {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></IconBase>,
+            Tag: (props) => <IconBase {...props}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" /></IconBase>
         };
 
-        const { LayoutDashboard, Users, CheckCircle2, Clock, Plus, Trash2, ExternalLink, LogOut, FileText, ChevronRight, User, Lock, Zap, AlertTriangle, Calendar, Coins, CreditCard, Check, XCircle, TrendingUp } = Icons;
+        const { LayoutDashboard, Users, CheckCircle2, Clock, Plus, Trash2, ExternalLink, LogOut, FileText, ChevronRight, User, Lock, Zap, AlertTriangle, Calendar, Coins, CreditCard, Check, XCircle, TrendingUp, Pencil, Tag } = Icons;
 
         // --- UTILS ---
         const formatRupiah = (number) => {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         };
 
-        // --- NEW: COMPONENT COUNTDOWN TIMER REAL-TIME ---
+        // Hitung Harga Final (Diskon)
+        const getFinalPrice = (task) => {
+            const price = parseInt(task.price) || 0;
+            const discount = parseInt(task.discount) || 0;
+            return Math.max(0, price - discount);
+        };
+
+        // --- COMPONENT COUNTDOWN TIMER REAL-TIME ---
         const CountdownTimer = ({ deadline }) => {
             const [info, setInfo] = useState(null);
 
@@ -398,11 +400,14 @@
             const [newTaskPrice, setNewTaskPrice] = useState('');
             const [newTaskDeadline, setNewTaskDeadline] = useState('');
             const [newTaskDesc, setNewTaskDesc] = useState('');
+            const [newTaskDiscount, setNewTaskDiscount] = useState('');
+            const [newTaskDiscountDesc, setNewTaskDiscountDesc] = useState('');
+
             const [editingTask, setEditingTask] = useState(null);
             const [gdriveLink, setGdriveLink] = useState('');
             const [deleteConfirm, setDeleteConfirm] = useState(null);
+            const [taskToUpdate, setTaskToUpdate] = useState(null);
 
-            // PAYMENT STATES
             const [showPaymentModal, setShowPaymentModal] = useState(false);
             const [selectedTasksForPayment, setSelectedTasksForPayment] = useState([]);
             const [paymentActionConfirm, setPaymentActionConfirm] = useState(null); 
@@ -474,7 +479,7 @@
             const calculateSelectedTotal = () => {
                 return tasks
                     .filter(t => selectedTasksForPayment.includes(t.id))
-                    .reduce((sum, t) => sum + (parseInt(t.price) || 0), 0);
+                    .reduce((sum, t) => sum + getFinalPrice(t), 0);
             };
 
             const handleConfirmTransfer = async () => {
@@ -530,6 +535,25 @@
                 setNewClientFullName('');
             };
 
+            const handleEditClick = (task) => {
+                setTaskToUpdate({ ...task });
+            };
+
+            // UPDATE TASK (Include Discount)
+            const handleUpdateSave = async (e) => {
+                e.preventDefault();
+                if (!taskToUpdate) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(taskToUpdate.id).update({
+                    title: taskToUpdate.title,
+                    price: parseInt(taskToUpdate.price) || 0,
+                    deadline: taskToUpdate.deadline || null,
+                    description: taskToUpdate.description || '',
+                    discount: parseInt(taskToUpdate.discount) || 0,
+                    discountDesc: taskToUpdate.discountDesc || ''
+                });
+                setTaskToUpdate(null);
+            };
+
             const triggerDeleteClient = (client) => setDeleteConfirm({ type: 'client', id: client.id, title: client.name });
             const triggerDeleteTask = (task) => setDeleteConfirm({ type: 'task', id: task.id, title: task.title });
 
@@ -544,6 +568,7 @@
                 setDeleteConfirm(null);
             };
 
+            // ADD TASK (Include Discount)
             const handleAddTask = async (e) => {
                 e.preventDefault();
                 if (!newTaskTitle.trim()) return;
@@ -551,14 +576,16 @@
                     clientId: selectedClientId,
                     title: newTaskTitle,
                     price: parseInt(newTaskPrice) || 0,
-                    deadline: newTaskDeadline || null, // Stores full ISO date string including time
+                    deadline: newTaskDeadline || null, 
                     description: newTaskDesc || '',
+                    discount: parseInt(newTaskDiscount) || 0,
+                    discountDesc: newTaskDiscountDesc || '',
                     status: 'pending',
                     paymentStatus: 'unpaid', 
                     gdriveLink: '',
                     createdAt: Date.now()
                 });
-                setNewTaskTitle(''); setNewTaskPrice(''); setNewTaskDeadline(''); setNewTaskDesc('');
+                setNewTaskTitle(''); setNewTaskPrice(''); setNewTaskDeadline(''); setNewTaskDesc(''); setNewTaskDiscount(''); setNewTaskDiscountDesc('');
             };
 
             const handleCompleteTask = (task) => { setEditingTask(task); setGdriveLink(task.gdriveLink || ''); };
@@ -590,9 +617,9 @@
                 if (!selectedClientId) return { pendingWork: 0, unpaidBill: 0, verifyingBill: 0 };
                 const clientTasks = tasks.filter(t => t.clientId === selectedClientId);
                 return {
-                    pendingWork: clientTasks.filter(t => t.status === 'pending').reduce((acc, curr) => acc + (curr.price || 0), 0),
-                    unpaidBill: clientTasks.filter(t => (!t.paymentStatus || t.paymentStatus === 'unpaid')).reduce((acc, curr) => acc + (curr.price || 0), 0),
-                    verifyingBill: clientTasks.filter(t => t.paymentStatus === 'verifying').reduce((acc, curr) => acc + (curr.price || 0), 0)
+                    pendingWork: clientTasks.filter(t => t.status === 'pending').reduce((acc, curr) => acc + getFinalPrice(curr), 0),
+                    unpaidBill: clientTasks.filter(t => (!t.paymentStatus || t.paymentStatus === 'unpaid')).reduce((acc, curr) => acc + getFinalPrice(curr), 0),
+                    verifyingBill: clientTasks.filter(t => t.paymentStatus === 'verifying').reduce((acc, curr) => acc + getFinalPrice(curr), 0)
                 };
             }, [tasks, selectedClientId]);
 
@@ -604,7 +631,7 @@
                 
                 return tasks
                     .filter(t => t.paymentStatus === 'paid' && t.paidAt && t.paidAt >= todayStart)
-                    .reduce((sum, t) => sum + (parseInt(t.price) || 0), 0);
+                    .reduce((sum, t) => sum + getFinalPrice(t), 0);
             }, [tasks, user]);
 
             const selectedClient = clients.find(c => c.id === selectedClientId);
@@ -630,10 +657,21 @@
                 )
             }
             if (!user) return <LoginScreen onLogin={handleUserLogin} clients={clients} />;
+            
+            // SHOW LOADING IF AUTH IS NOT READY BUT USER IS SET (FROM REMEMBER ME)
+            if (user && !authUser) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+                        <div className="text-zinc-500 flex flex-col items-center gap-4">
+                            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm animate-pulse">Menghubungkan Database...</p>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="flex h-screen overflow-hidden bg-[#09090b] text-zinc-100 font-sans selection:bg-indigo-500/30">
-                    
                     {/* SIDEBAR ADMIN */}
                     {user.role === 'admin' && (
                         <aside className="w-72 bg-[#09090b] border-r border-zinc-800 flex flex-col hidden md:flex relative z-20">
@@ -641,39 +679,24 @@
                                 <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent inline-block">Jozen</h2>
                                 <div className="mt-1 flex items-center gap-2 text-xs font-mono text-indigo-400"><span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> ADMIN MODE</div>
                             </div>
-
-                            {/* PENDAPATAN HARI INI */}
                             <div className="px-8 mb-6">
                                 <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500/10 rounded-bl-full -mr-2 -mt-2 transition-all group-hover:bg-emerald-500/20"></div>
-                                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                                        <TrendingUp size={14} className="text-emerald-500" />
-                                        Pendapatan Hari Ini
-                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider mb-1"><TrendingUp size={14} className="text-emerald-500" /> Pendapatan Hari Ini</div>
                                     <p className="text-2xl font-bold text-emerald-400 font-mono tracking-tight">{formatRupiah(todaysIncome)}</p>
                                 </div>
                             </div>
-
                             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
                                 <div className="px-4 mb-2"><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Clients Database</span></div>
                                 <form onSubmit={handleAddClient} className="mx-2 mb-6 bg-zinc-900 p-2 rounded-xl border border-zinc-800">
                                     <div className="space-y-2">
                                         <input type="text" placeholder="Nama Akun (Login)..." className="w-full bg-transparent border-b border-zinc-800 text-sm px-2 py-1.5 text-zinc-300 outline-none focus:border-indigo-500/50 transition-colors" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
-                                        <div className="flex items-center">
-                                            <input type="text" placeholder="Nama Lengkap (Opsional)..." className="flex-1 bg-transparent border-none text-sm px-2 py-1.5 text-zinc-300 outline-none" value={newClientFullName} onChange={(e) => setNewClientFullName(e.target.value)} />
-                                            <button type="submit" className="text-zinc-500 hover:text-indigo-400 p-1"><Plus size={16} /></button>
-                                        </div>
+                                        <div className="flex items-center"><input type="text" placeholder="Nama Lengkap (Opsional)..." className="flex-1 bg-transparent border-none text-sm px-2 py-1.5 text-zinc-300 outline-none" value={newClientFullName} onChange={(e) => setNewClientFullName(e.target.value)} /><button type="submit" className="text-zinc-500 hover:text-indigo-400 p-1"><Plus size={16} /></button></div>
                                     </div>
                                 </form>
                                 {clients.map(client => (
                                     <div key={client.id} onClick={() => setSelectedClientId(client.id)} className={`group relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 border ${selectedClientId === client.id ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-semibold shadow-lg' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
-                                        <div className="flex items-center gap-3 truncate">
-                                            <div className={`p-1.5 rounded-md ${selectedClientId === client.id ? 'bg-zinc-950/10 text-zinc-900' : 'bg-zinc-900 text-zinc-600 group-hover:text-zinc-400'}`}><Users size={14} /></div>
-                                            <div className="flex flex-col truncate">
-                                                <span className="truncate text-sm leading-tight">{client.fullName || client.name}</span>
-                                                <span className="truncate text-[10px] text-zinc-500 leading-tight">@{client.name}</span>
-                                            </div>
-                                        </div>
+                                        <div className="flex items-center gap-3 truncate"><div className={`p-1.5 rounded-md ${selectedClientId === client.id ? 'bg-zinc-950/10 text-zinc-900' : 'bg-zinc-900 text-zinc-600 group-hover:text-zinc-400'}`}><Users size={14} /></div><div className="flex flex-col truncate"><span className="truncate text-sm leading-tight">{client.fullName || client.name}</span><span className="truncate text-[10px] text-zinc-500 leading-tight">@{client.name}</span></div></div>
                                         <button onClick={(e) => { e.stopPropagation(); triggerDeleteClient(client); }} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-900/20 text-red-500 rounded"><Trash2 size={14} /></button>
                                     </div>
                                 ))}
@@ -685,66 +708,23 @@
                     {/* MAIN CONTENT */}
                     <main className="flex-1 flex flex-col bg-[#09090b] relative z-10 w-full">
                         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
-                        
-                        {/* Mobile Header */}
-                        <div className="md:hidden p-4 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800 flex justify-between items-center sticky top-0 z-50">
-                            <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Jozen</span>
-                            <button onClick={handleLogout} className="text-zinc-400"><LogOut size={20} /></button>
-                        </div>
+                        <div className="md:hidden p-4 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800 flex justify-between items-center sticky top-0 z-50"><span className="font-extrabold text-lg bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Jozen</span><button onClick={handleLogout} className="text-zinc-400"><LogOut size={20} /></button></div>
 
                         {!selectedClientId ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600">
-                                <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 ring-1 ring-zinc-800"><Zap size={32} className="text-zinc-500" /></div>
-                                <h3 className="text-lg font-medium text-zinc-300">Welcome to Jozen</h3>
-                                <p className="text-sm mt-1">Select a client from the sidebar.</p>
-                            </div>
+                            <div className="flex-1 flex flex-col items-center justify-center text-zinc-600"><div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 ring-1 ring-zinc-800"><Zap size={32} className="text-zinc-500" /></div><h3 className="text-lg font-medium text-zinc-300">Welcome to Jozen</h3><p className="text-sm mt-1">Select a client from the sidebar.</p></div>
                         ) : (
                             <>
                                 <header className="p-6 md:p-8 pb-0 flex flex-col gap-6 relative">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                        <div>
-                                            <div className="text-xs font-semibold text-indigo-400 mb-1 tracking-wide">
-                                                Selamat Datang, {user.role === 'admin' ? user.fullName : (user.id === selectedClient?.id ? user.fullName : selectedClient?.name)} 👋
-                                            </div>
-                                            <h1 className="text-3xl font-bold text-white tracking-tight mb-1">{selectedClient?.fullName || selectedClient?.name}</h1>
-                                            <p className="text-sm text-zinc-500">Project Overview</p>
-                                        </div>
-                                        
+                                        <div><div className="text-xs font-semibold text-indigo-400 mb-1 tracking-wide">Selamat Datang, {user.role === 'admin' ? user.fullName : (user.id === selectedClient?.id ? user.fullName : selectedClient?.name)} 👋</div><h1 className="text-3xl font-bold text-white tracking-tight mb-1">{selectedClient?.fullName || selectedClient?.name}</h1><p className="text-sm text-zinc-500">Project Overview</p></div>
                                         <div className="flex flex-wrap gap-3 items-center">
-                                            {/* PAY NOW BUTTON FOR CLIENT */}
-                                            {user.role === 'client' && (
-                                                <button onClick={openPaymentModal} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/20 flex items-center gap-2 animate-pulse">
-                                                    <CreditCard size={18} /> Bayar Sekarang
-                                                </button>
-                                            )}
-                                            
-                                            {/* TAGIHAN (UNPAID) */}
-                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-red-500">
-                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Tagihan</p>
-                                                <p className="text-sm font-mono text-red-400">{formatRupiah(stats.unpaidBill)}</p>
-                                            </div>
-
-                                            {/* PENGECEKAN (VERIFYING) */}
-                                            {stats.verifyingBill > 0 && (
-                                                <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-yellow-500">
-                                                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Pengecekan</p>
-                                                    <p className="text-sm font-mono text-yellow-400">{formatRupiah(stats.verifyingBill)}</p>
-                                                </div>
-                                            )}
-
-                                            {/* ON GOING */}
-                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-indigo-500">
-                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">On Going</p>
-                                                <p className="text-sm font-mono text-indigo-400">{formatRupiah(stats.pendingWork)}</p>
-                                            </div>
-                                            
-                                            {/* LOGOUT CLIENT DESKTOP */}
-                                            {user.role === 'client' && (
-                                                <button onClick={handleLogout} className="bg-zinc-800 p-3 rounded-xl hover:bg-zinc-700 text-zinc-400 border border-zinc-700 hidden md:block" title="Keluar"><LogOut size={20} /></button>
-                                            )}
+                                            {user.role === 'client' && <button onClick={openPaymentModal} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/20 flex items-center gap-2 animate-pulse"><CreditCard size={18} /> Bayar Sekarang</button>}
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-red-500"><p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Tagihan</p><p className="text-sm font-mono text-red-400">{formatRupiah(stats.unpaidBill)}</p></div>
+                                            {stats.verifyingBill > 0 && <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-yellow-500"><p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Pengecekan</p><p className="text-sm font-mono text-yellow-400">{formatRupiah(stats.verifyingBill)}</p></div>}
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-indigo-500"><p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">On Going</p><p className="text-sm font-mono text-indigo-400">{formatRupiah(stats.pendingWork)}</p></div>
+                                            {user.role === 'client' && <button onClick={handleLogout} className="bg-zinc-800 p-3 rounded-xl hover:bg-zinc-700 text-zinc-400 border border-zinc-700 hidden md:block" title="Keluar"><LogOut size={20} /></button>}
                                         </div>
                                     </div>
-
                                     <div className="flex bg-zinc-900/80 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm self-start">
                                         <button onClick={() => setViewMode('pending')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'pending' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}><Clock size={16} /> Ongoing</button>
                                         <button onClick={() => setViewMode('completed')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'completed' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}><CheckCircle2 size={16} /> Done</button>
@@ -752,14 +732,17 @@
                                 </header>
 
                                 <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6 pb-20">
-                                    {/* ADMIN ADD TASK */}
+                                    {/* ADMIN ADD TASK - Updated with Discount */}
                                     {user.role === 'admin' && viewMode === 'pending' && (
                                         <form onSubmit={handleAddTask} className="glass-panel p-3 rounded-2xl mb-8 flex flex-col gap-3 shadow-lg shadow-black/20">
                                             <div className="flex flex-col md:flex-row gap-3">
                                                 <input type="text" placeholder="Tugas apa nih?" className="flex-[2] bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
                                                 <input type="number" placeholder="Harga (Rp)" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm font-mono border border-transparent focus:border-indigo-500/50" value={newTaskPrice} onChange={(e) => setNewTaskPrice(e.target.value)} />
-                                                {/* UPDATE: Input DateTime Local */}
                                                 <input type="datetime-local" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} />
+                                            </div>
+                                            <div className="flex flex-col md:flex-row gap-3">
+                                                <input type="number" placeholder="Potongan (Rp)" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm font-mono border border-transparent focus:border-indigo-500/50" value={newTaskDiscount} onChange={(e) => setNewTaskDiscount(e.target.value)} />
+                                                <input type="text" placeholder="Info Diskon (opsional)" className="flex-[2] bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskDiscountDesc} onChange={(e) => setNewTaskDiscountDesc(e.target.value)} />
                                             </div>
                                             <textarea placeholder="Catatan / Deskripsi (Opsional)" className="w-full bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50 resize-none h-16" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)}></textarea>
                                             <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white w-full py-2.5 rounded-xl font-medium transition-all text-sm shadow-lg shadow-indigo-900/30">Add Task</button>
@@ -780,10 +763,22 @@
                                                                         {getPaymentBadge(task.paymentStatus)}
                                                                     </div>
                                                                     {task.description && <p className="text-zinc-500 text-xs mt-1 max-w-lg">{task.description}</p>}
+                                                                    
                                                                     <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-medium">
-                                                                        {task.price > 0 && <span className="text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded">{formatRupiah(task.price)}</span>}
+                                                                        {task.discount > 0 ? (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-zinc-500 line-through">{formatRupiah(task.price)}</span>
+                                                                                <span className="text-emerald-400 font-mono bg-zinc-800 px-2 py-0.5 rounded border border-emerald-500/30">{formatRupiah(getFinalPrice(task))}</span>
+                                                                                {task.discountDesc && (
+                                                                                    <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                                                                        <Tag size={10} /> {task.discountDesc}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            task.price > 0 && <span className="text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded">{formatRupiah(task.price)}</span>
+                                                                        )}
                                                                         
-                                                                        {/* UPDATE: Use CountdownTimer Component */}
                                                                         {task.status === 'pending' && <CountdownTimer deadline={task.deadline} />}
                                                                     </div>
                                                                 </div>
@@ -794,17 +789,12 @@
                                                         {user.role === 'admin' && (
                                                             <div className="flex flex-col items-end gap-2">
                                                                 <div className="flex gap-2">
-                                                                    {task.status === 'pending' ? 
-                                                                        <button onClick={() => handleCompleteTask(task)} className="bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-bold shadow-lg">Finish</button> :
-                                                                        <button onClick={() => handleRevertTask(task)} className="text-xs text-zinc-600 hover:text-zinc-400 px-2">Undo</button>
-                                                                    }
+                                                                    <button onClick={() => handleEditClick(task)} className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="Edit Tugas"><Pencil size={16} /></button>
+                                                                    {task.status === 'pending' ? <button onClick={() => handleCompleteTask(task)} className="bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-bold shadow-lg">Finish</button> : <button onClick={() => handleRevertTask(task)} className="text-xs text-zinc-600 hover:text-zinc-400 px-2">Undo</button>}
                                                                     <button onClick={() => triggerDeleteTask(task)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg"><Trash2 size={16} /></button>
                                                                 </div>
                                                                 {task.paymentStatus === 'verifying' && (
-                                                                    <div className="flex gap-2 mt-1">
-                                                                        <button onClick={() => triggerApprovePayment(task)} className="bg-emerald-600/20 text-emerald-400 border border-emerald-600/50 px-3 py-1 rounded text-xs hover:bg-emerald-600/30">Terima</button>
-                                                                        <button onClick={() => triggerRejectPayment(task)} className="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-1 rounded text-xs hover:bg-red-600/30">Tolak</button>
-                                                                    </div>
+                                                                    <div className="flex gap-2 mt-1"><button onClick={() => triggerApprovePayment(task)} className="bg-emerald-600/20 text-emerald-400 border border-emerald-600/50 px-3 py-1 rounded text-xs hover:bg-emerald-600/30">Terima</button><button onClick={() => triggerRejectPayment(task)} className="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-1 rounded text-xs hover:bg-red-600/30">Tolak</button></div>
                                                                 )}
                                                             </div>
                                                         )}
@@ -820,44 +810,23 @@
                         {showPaymentModal && (
                             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[80]">
                                 <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-md shadow-2xl border border-zinc-700 animation-fade-in-up">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><CreditCard className="text-indigo-500" /> Pembayaran</h3>
-                                        <button onClick={() => setShowPaymentModal(false)} className="text-zinc-500 hover:text-white"><span className="text-2xl">&times;</span></button>
-                                    </div>
-
+                                    <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><CreditCard className="text-indigo-500" /> Pembayaran</h3><button onClick={() => setShowPaymentModal(false)} className="text-zinc-500 hover:text-white"><span className="text-2xl">&times;</span></button></div>
                                     <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 mb-6">
                                         <p className="text-zinc-400 text-sm">Pilih tugas yang ingin dibayar:</p>
-                                        {tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid')).length === 0 ? (
-                                            <p className="text-center text-zinc-600 text-sm py-4 italic">Tidak ada tagihan aktif.</p>
-                                        ) : (
+                                        {tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid')).length === 0 ? <p className="text-center text-zinc-600 text-sm py-4 italic">Tidak ada tagihan aktif.</p> : 
                                             tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid')).map(task => (
                                                 <label key={task.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${selectedTasksForPayment.includes(task.id) ? 'bg-indigo-900/20 border-indigo-500/50' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}>
-                                                    <div className="flex items-center gap-3">
-                                                        <input type="checkbox" className="custom-checkbox" checked={selectedTasksForPayment.includes(task.id)} onChange={() => toggleTaskSelection(task.id)} />
-                                                        <span className="text-sm font-medium text-zinc-200">{task.title}</span>
-                                                    </div>
-                                                    <span className="font-mono text-xs text-zinc-400">{formatRupiah(task.price)}</span>
+                                                    <div className="flex items-center gap-3"><input type="checkbox" className="custom-checkbox" checked={selectedTasksForPayment.includes(task.id)} onChange={() => toggleTaskSelection(task.id)} /><span className="text-sm font-medium text-zinc-200">{task.title}</span></div>
+                                                    <span className="font-mono text-xs text-zinc-400">{formatRupiah(getFinalPrice(task))}</span>
                                                 </label>
                                             ))
-                                        )}
+                                        }
                                     </div>
-
                                     <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 mb-6">
-                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-zinc-800">
-                                            <span className="text-zinc-400 text-sm">Total Bayar</span>
-                                            <span className="text-xl font-bold text-indigo-400 font-mono">{formatRupiah(calculateSelectedTotal())}</span>
-                                        </div>
-                                        <div className="text-center space-y-1">
-                                            <p className="text-xs text-zinc-500 uppercase tracking-widest">Transfer ke</p>
-                                            <p className="text-white font-bold text-lg">{BANK_INFO.bank}</p>
-                                            <p className="text-2xl font-mono text-white tracking-wider my-2 select-all bg-zinc-800 rounded py-1 cursor-text" onClick={() => navigator.clipboard.writeText(BANK_INFO.number)}>{BANK_INFO.number}</p>
-                                            <p className="text-sm text-zinc-400">a.n {BANK_INFO.name}</p>
-                                        </div>
+                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-zinc-800"><span className="text-zinc-400 text-sm">Total Bayar</span><span className="text-xl font-bold text-indigo-400 font-mono">{formatRupiah(calculateSelectedTotal())}</span></div>
+                                        <div className="text-center space-y-1"><p className="text-xs text-zinc-500 uppercase tracking-widest">Transfer ke</p><p className="text-white font-bold text-lg">{BANK_INFO.bank}</p><p className="text-2xl font-mono text-white tracking-wider my-2 select-all bg-zinc-800 rounded py-1 cursor-text" onClick={() => navigator.clipboard.writeText(BANK_INFO.number)}>{BANK_INFO.number}</p><p className="text-sm text-zinc-400">a.n {BANK_INFO.name}</p></div>
                                     </div>
-
-                                    <button onClick={handleConfirmTransfer} disabled={selectedTasksForPayment.length === 0} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-900/30">
-                                        Sudah Transfer & Konfirmasi
-                                    </button>
+                                    <button onClick={handleConfirmTransfer} disabled={selectedTasksForPayment.length === 0} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-900/30">Sudah Transfer & Konfirmasi</button>
                                 </div>
                             </div>
                         )}
@@ -865,23 +834,32 @@
                         {paymentActionConfirm && (
                             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
                                 <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-zinc-800 animation-fade-in-up text-center">
-                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 border ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-900/30 border-emerald-500/20 text-emerald-500' : 'bg-red-900/30 border-red-500/20 text-red-500'}`}>
-                                        {paymentActionConfirm.type === 'approve' ? <Check size={24} /> : <XCircle size={24} />}
-                                    </div>
+                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 border ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-900/30 border-emerald-500/20 text-emerald-500' : 'bg-red-900/30 border-red-500/20 text-red-500'}`}>{paymentActionConfirm.type === 'approve' ? <Check size={24} /> : <XCircle size={24} />}</div>
                                     <h3 className="text-lg font-bold text-white mb-2">{paymentActionConfirm.type === 'approve' ? 'Terima Pembayaran?' : 'Tolak Pembayaran?'}</h3>
-                                    <p className="text-zinc-400 text-sm mb-6">
-                                        Untuk tugas: <strong className="text-white">{paymentActionConfirm.task.title}</strong><br/>
-                                        Sebesar: <span className="font-mono text-indigo-400">{formatRupiah(paymentActionConfirm.task.price)}</span>
-                                    </p>
-                                    
-                                    <div className="flex gap-3 justify-center">
-                                        <button onClick={() => setPaymentActionConfirm(null)} className="px-5 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl text-sm font-medium transition-colors">
-                                            Batal
-                                        </button>
-                                        <button onClick={executePaymentAction} className={`px-5 py-2.5 text-white rounded-xl font-medium transition-colors text-sm shadow-lg ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-red-600 hover:bg-red-500 shadow-red-900/40'}`}>
-                                            {paymentActionConfirm.type === 'approve' ? 'Ya, Terima' : 'Ya, Tolak'}
-                                        </button>
-                                    </div>
+                                    <p className="text-zinc-400 text-sm mb-6">Untuk tugas: <strong className="text-white">{paymentActionConfirm.task.title}</strong><br/>Sebesar: <span className="font-mono text-indigo-400">{formatRupiah(getFinalPrice(paymentActionConfirm.task))}</span></p>
+                                    <div className="flex gap-3 justify-center"><button onClick={() => setPaymentActionConfirm(null)} className="px-5 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl text-sm font-medium transition-colors">Batal</button><button onClick={executePaymentAction} className={`px-5 py-2.5 text-white rounded-xl font-medium transition-colors text-sm shadow-lg ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-red-600 hover:bg-red-500 shadow-red-900/40'}`}>{paymentActionConfirm.type === 'approve' ? 'Ya, Terima' : 'Ya, Tolak'}</button></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* MODAL UPDATE TASK */}
+                        {taskToUpdate && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+                                <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-md shadow-2xl border border-zinc-700 animation-fade-in-up">
+                                    <h3 className="text-lg font-bold text-white mb-4">Edit Tugas</h3>
+                                    <form onSubmit={handleUpdateSave} className="space-y-4">
+                                        <div><label className="text-xs text-zinc-500 mb-1 block">Judul Tugas</label><input type="text" className="w-full glass-input rounded-xl p-3 text-white outline-none" value={taskToUpdate.title} onChange={(e) => setTaskToUpdate({...taskToUpdate, title: e.target.value})} /></div>
+                                        <div className="flex gap-3">
+                                            <div className="flex-1"><label className="text-xs text-zinc-500 mb-1 block">Harga (Rp)</label><input type="number" className="w-full glass-input rounded-xl p-3 text-white outline-none" value={taskToUpdate.price} onChange={(e) => setTaskToUpdate({...taskToUpdate, price: e.target.value})} /></div>
+                                            <div className="flex-1"><label className="text-xs text-zinc-500 mb-1 block">Deadline</label><input type="datetime-local" className="w-full glass-input rounded-xl p-3 text-white outline-none" value={taskToUpdate.deadline || ''} onChange={(e) => setTaskToUpdate({...taskToUpdate, deadline: e.target.value})} /></div>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <div className="flex-1"><label className="text-xs text-zinc-500 mb-1 block">Potongan (Rp)</label><input type="number" className="w-full glass-input rounded-xl p-3 text-white outline-none" value={taskToUpdate.discount} onChange={(e) => setTaskToUpdate({...taskToUpdate, discount: e.target.value})} /></div>
+                                            <div className="flex-[2]"><label className="text-xs text-zinc-500 mb-1 block">Info Diskon</label><input type="text" className="w-full glass-input rounded-xl p-3 text-white outline-none" value={taskToUpdate.discountDesc} onChange={(e) => setTaskToUpdate({...taskToUpdate, discountDesc: e.target.value})} /></div>
+                                        </div>
+                                        <div><label className="text-xs text-zinc-500 mb-1 block">Catatan / Deskripsi</label><textarea className="w-full glass-input rounded-xl p-3 text-white outline-none resize-none h-24" value={taskToUpdate.description} onChange={(e) => setTaskToUpdate({...taskToUpdate, description: e.target.value})} ></textarea></div>
+                                        <div className="flex gap-3 justify-end pt-2"><button type="button" onClick={() => setTaskToUpdate(null)} className="px-4 py-2 text-zinc-400 hover:text-white rounded-lg transition-colors">Batal</button><button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg">Simpan Perubahan</button></div>
+                                    </form>
                                 </div>
                             </div>
                         )}
@@ -907,8 +885,6 @@
                             </div>
                         )}
                     </main>
-                    
-                    {/* LOGOUT MOBILE */}
                     {user.role === 'client' && <div className="fixed bottom-6 right-6 z-50 md:hidden"><button onClick={handleLogout} className="bg-zinc-800 text-white p-4 rounded-full shadow-2xl border border-zinc-700 hover:bg-zinc-700 transition-all"><LogOut size={24} /></button></div>}
                 </div>
             );
