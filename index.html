@@ -50,13 +50,46 @@
         }
         
         /* Date Picker Dark Mode Override */
-        input[type="date"]::-webkit-calendar-picker-indicator {
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
             cursor: pointer;
             opacity: 0.6;
         }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
+        }
+
+        /* Custom Checkbox */
+        .custom-checkbox {
+            appearance: none;
+            background-color: rgba(39, 39, 42, 0.5);
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.15em;
+            height: 1.15em;
+            border: 1px solid currentColor;
+            border-radius: 0.25em;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+        }
+        .custom-checkbox::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em white;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .custom-checkbox:checked::before {
+            transform: scale(1);
+        }
+        .custom-checkbox:checked {
+            background-color: #6366f1;
+            border-color: #6366f1;
         }
 
         @keyframes fade-in-up {
@@ -91,6 +124,13 @@
             measurementId: "G-5R90CZW9W3"
         };
         
+        // UPDATE: NOMOR REKENING BLU BARU
+        const BANK_INFO = {
+            bank: "BCA Digital (Blu)",
+            number: "009349637402", 
+            name: "Anzenna Shafwan Keano Dranantya" 
+        };
+
         // Initialize Firebase
         if (!firebase.apps.length) {
             try {
@@ -130,34 +170,117 @@
             AlertTriangle: (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></IconBase>,
             Calendar: (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></IconBase>,
             Coins: (props) => <IconBase {...props}><circle cx="8" cy="8" r="6" /><path d="M18.09 10.37A6 6 0 1 1 10.34 18" /><path d="M7 6h1v4" /><path d="m16.71 13.88.7.71-2.82 2.82" /></IconBase>,
-            Settings: (props) => <IconBase {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></IconBase>
+            CreditCard: (props) => <IconBase {...props}><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></IconBase>,
+            Check: (props) => <IconBase {...props}><path d="M20 6 9 17l-5-5" /></IconBase>,
+            XCircle: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></IconBase>,
+            TrendingUp: (props) => <IconBase {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></IconBase>
         };
 
-        const { LayoutDashboard, Users, CheckCircle2, Clock, Plus, Trash2, ExternalLink, LogOut, FileText, ChevronRight, User, Lock, Zap, AlertTriangle, Calendar, Coins, Settings } = Icons;
+        const { LayoutDashboard, Users, CheckCircle2, Clock, Plus, Trash2, ExternalLink, LogOut, FileText, ChevronRight, User, Lock, Zap, AlertTriangle, Calendar, Coins, CreditCard, Check, XCircle, TrendingUp } = Icons;
 
         // --- UTILS ---
         const formatRupiah = (number) => {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
         };
 
-        const getDaysRemaining = (deadline) => {
-            if (!deadline) return null;
-            const now = new Date();
-            now.setHours(0, 0, 0, 0); 
-            const dead = new Date(deadline);
-            dead.setHours(0, 0, 0, 0);
-            
-            const diffTime = dead - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            
-            return diffDays;
+        // --- NEW: COMPONENT COUNTDOWN TIMER REAL-TIME ---
+        const CountdownTimer = ({ deadline }) => {
+            const [info, setInfo] = useState(null);
+
+            useEffect(() => {
+                if (!deadline) return;
+
+                const calculate = () => {
+                    const now = new Date();
+                    const dead = new Date(deadline);
+                    const diff = dead - now;
+
+                    const dateStr = dead.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+                    const timeStr = dead.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
+                    const formattedDate = `${dateStr}, ${timeStr}`;
+
+                    // JIKA TELAT
+                    if (diff < 0) {
+                        const absDiff = Math.abs(diff);
+                        const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((absDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((absDiff % (1000 * 60)) / 1000);
+                        
+                        setInfo({
+                            text: `Telat ${days > 0 ? days + 'h ' : ''}${hours}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`,
+                            color: 'text-red-400',
+                            border: 'border-red-500/30',
+                            bg: 'bg-red-500/10',
+                            formattedDate
+                        });
+                        return;
+                    }
+
+                    // HITUNG MUNDUR
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    let text = "";
+                    let color = "text-emerald-400";
+                    let border = "border-emerald-500/30";
+                    let bg = "bg-emerald-500/10";
+
+                    if (days > 0) {
+                        // Masih lama (> 24 jam)
+                        text = `${days} Hari ${hours} Jam Lagi`;
+                        if (days <= 2) {
+                            color = "text-amber-400";
+                            border = "border-amber-500/30";
+                            bg = "bg-amber-500/10";
+                        }
+                    } else {
+                        // MEPET (< 24 jam) -> Tampilkan Jam:Menit:Detik
+                        const h = hours.toString().padStart(2, '0');
+                        const m = minutes.toString().padStart(2, '0');
+                        const s = seconds.toString().padStart(2, '0');
+                        text = `${h}:${m}:${s} Lagi`;
+                        
+                        if (hours < 3) {
+                            color = "text-red-400 animate-pulse"; // Kritis
+                            border = "border-red-500/30";
+                            bg = "bg-red-500/10";
+                        } else {
+                            color = "text-amber-400";
+                            border = "border-amber-500/30";
+                            bg = "bg-amber-500/10";
+                        }
+                    }
+
+                    setInfo({ text, color, border, bg, formattedDate });
+                };
+
+                calculate();
+                const timer = setInterval(calculate, 1000); // Update tiap detik
+
+                return () => clearInterval(timer);
+            }, [deadline]);
+
+            if (!info) return null;
+
+            return (
+                <div className={`flex flex-col sm:flex-row sm:items-center gap-1.5`}>
+                    <span className={`flex items-center gap-1 ${info.color} ${info.bg} ${info.border} px-2 py-0.5 rounded border min-w-[110px] justify-center`}>
+                        <Calendar size={12} /> <span className="font-mono text-xs">{info.text}</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-600">({info.formattedDate})</span>
+                </div>
+            );
         };
 
         // --- LOGIN COMPONENT ---
         const LoginScreen = ({ onLogin, clients }) => {
-            const [role, setRole] = useState('client'); // Default ke Client
+            const [role, setRole] = useState('client'); 
             const [username, setUsername] = useState('');
             const [error, setError] = useState('');
+            const [rememberMe, setRememberMe] = useState(false); 
 
             useEffect(() => { setUsername(''); setError(''); }, [role]);
 
@@ -166,19 +289,32 @@
                 setError('');
                 const input = username.trim();
 
+                let userData = null;
+
                 if (role === 'admin') {
                     if (input === '10042006') {
-                        onLogin({ role: 'admin', name: 'Admin Zen' });
+                        userData = { role: 'admin', name: 'Admin Zen', fullName: 'Admin Zen' };
                     } else {
                         setError('Kode Keamanan Salah!');
+                        return;
                     }
                 } else {
                     const foundClient = clients.find(c => c.name.toLowerCase() === input.toLowerCase());
                     if (foundClient) {
-                        onLogin({ role: 'client', name: foundClient.name, id: foundClient.id });
+                        userData = { 
+                            role: 'client', 
+                            name: foundClient.name, 
+                            fullName: foundClient.fullName || foundClient.name, 
+                            id: foundClient.id 
+                        };
                     } else {
                         setError('Nama client tidak terdaftar di database.');
+                        return;
                     }
+                }
+
+                if (userData) {
+                    onLogin(userData, rememberMe);
                 }
             };
 
@@ -196,8 +332,6 @@
                         </div>
 
                         <form onSubmit={handleLogin} className="space-y-6">
-                            {/* TOMBOL KIRI KANAN DIHILANGKAN, LANGSUNG INPUT */}
-
                             <div>
                                 <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                                     {role === 'admin' ? 'Security Code' : 'Client Identity'}
@@ -207,7 +341,7 @@
                                         type={role === 'admin' ? "password" : "text"}
                                         required
                                         className={`w-full glass-input rounded-xl p-3.5 outline-none placeholder-zinc-600 ${error ? 'border-red-500/50' : ''}`}
-                                        placeholder={role === 'admin' ? "••••••••" : "Nama sesuai database..."}
+                                        placeholder={role === 'admin' ? "••••••••" : "Masukkan nama akun..."}
                                         value={username}
                                         onChange={(e) => { setUsername(e.target.value); setError(''); }}
                                     />
@@ -216,11 +350,21 @@
                                 {error && <p className="text-red-400 text-xs mt-2 ml-1 font-medium animate-pulse">{error}</p>}
                             </div>
 
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="remember" 
+                                    className="custom-checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                />
+                                <label htmlFor="remember" className="text-sm text-zinc-400 cursor-pointer select-none">Ingat Saya</label>
+                            </div>
+
                             <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 active:scale-[0.98]">
                                 {role === 'admin' ? 'Unlock System' : 'Masuk Dashboard'}
                             </button>
 
-                            {/* TOGGLE ADMIN TERSEMBUNYI DI BAWAH */}
                             <div className="text-center pt-2">
                                 <button 
                                     type="button" 
@@ -245,73 +389,152 @@
             const [tasks, setTasks] = useState([]);
             
             const [selectedClientId, setSelectedClientId] = useState(null);
-            const [viewMode, setViewMode] = useState('pending'); // pending | completed
+            const [viewMode, setViewMode] = useState('pending');
             
-            // Form States
+            // Forms
             const [newClientName, setNewClientName] = useState('');
+            const [newClientFullName, setNewClientFullName] = useState('');
             const [newTaskTitle, setNewTaskTitle] = useState('');
             const [newTaskPrice, setNewTaskPrice] = useState('');
             const [newTaskDeadline, setNewTaskDeadline] = useState('');
             const [newTaskDesc, setNewTaskDesc] = useState('');
             const [editingTask, setEditingTask] = useState(null);
             const [gdriveLink, setGdriveLink] = useState('');
-            
-            // NEW: Delete Confirmation State
-            const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'client'|'task', id: string, title: string }
+            const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-            // Init Auth & Data
+            // PAYMENT STATES
+            const [showPaymentModal, setShowPaymentModal] = useState(false);
+            const [selectedTasksForPayment, setSelectedTasksForPayment] = useState([]);
+            const [paymentActionConfirm, setPaymentActionConfirm] = useState(null); 
+
+            // Init Auth & Data with Retry Logic
             useEffect(() => {
-                const initAuth = async () => {
+                const savedUser = localStorage.getItem('jozen_user');
+                if (savedUser) {
                     try {
-                        await auth.signInAnonymously();
-                    } catch (err) {
-                        console.error("Auth Error:", err);
-                        setAuthError(err);
+                        setUser(JSON.parse(savedUser));
+                    } catch (e) {
+                        localStorage.removeItem('jozen_user');
+                    }
+                }
+
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    setAuthUser(user);
+                    if (user) setAuthError(null);
+                }, (error) => {
+                    setAuthError(error);
+                });
+
+                const signIn = async () => {
+                    if (!auth.currentUser) {
+                        try {
+                            await auth.signInAnonymously();
+                        } catch (err) {
+                            if (err.code === 'auth/network-request-failed') {
+                                console.warn("Network error, retrying auth in 2s...");
+                                setTimeout(signIn, 2000);
+                            } else {
+                                setAuthError(err);
+                            }
+                        }
                     }
                 };
-                initAuth();
-                return auth.onAuthStateChanged((u) => setAuthUser(u));
+                
+                signIn();
+
+                return () => unsubscribe();
             }, []);
 
             useEffect(() => {
                 if (!authUser) return;
-                
                 const unsubClients = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients')
                     .onSnapshot(snap => setClients(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => b.createdAt - a.createdAt)));
-                
                 const unsubTasks = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks')
                     .onSnapshot(snap => setTasks(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-                
                 return () => { unsubClients(); unsubTasks(); };
             }, [authUser]);
 
-            // AUTO SELECT CLIENT ID if Logged in as Client
             useEffect(() => {
-                if (user && user.role === 'client') {
-                    setSelectedClientId(user.id);
-                }
+                if (user && user.role === 'client') setSelectedClientId(user.id);
             }, [user]);
 
+            // --- PAYMENT LOGIC ---
+            const openPaymentModal = () => {
+                const unpaid = tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid'));
+                setSelectedTasksForPayment(unpaid.map(t => t.id));
+                setShowPaymentModal(true);
+            };
+
+            const toggleTaskSelection = (taskId) => {
+                setSelectedTasksForPayment(prev => 
+                    prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+                );
+            };
+
+            const calculateSelectedTotal = () => {
+                return tasks
+                    .filter(t => selectedTasksForPayment.includes(t.id))
+                    .reduce((sum, t) => sum + (parseInt(t.price) || 0), 0);
+            };
+
+            const handleConfirmTransfer = async () => {
+                if (selectedTasksForPayment.length === 0) return;
+                
+                const batch = db.batch();
+                selectedTasksForPayment.forEach(taskId => {
+                    const ref = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(taskId);
+                    batch.update(ref, { paymentStatus: 'verifying' });
+                });
+
+                await batch.commit();
+                setShowPaymentModal(false);
+                alert("Konfirmasi dikirim! Tunggu admin cek mutasi ya.");
+            };
+
+            const triggerApprovePayment = (task) => setPaymentActionConfirm({ type: 'approve', task });
+            const triggerRejectPayment = (task) => setPaymentActionConfirm({ type: 'reject', task });
+
+            const executePaymentAction = async () => {
+                if (!paymentActionConfirm) return;
+                const { type, task } = paymentActionConfirm;
+                const newStatus = type === 'approve' ? 'paid' : 'unpaid';
+                
+                const updateData = { paymentStatus: newStatus };
+                if (type === 'approve') {
+                    updateData.paidAt = Date.now();
+                }
+
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(task.id).update(updateData);
+                setPaymentActionConfirm(null);
+            };
+
             // --- ACTIONS ---
+            const handleUserLogin = (userData, rememberMe) => {
+                setUser(userData);
+                if (rememberMe) {
+                    localStorage.setItem('jozen_user', JSON.stringify(userData));
+                } else {
+                    localStorage.removeItem('jozen_user');
+                }
+            };
+
             const handleAddClient = async (e) => {
                 e.preventDefault();
-                if (!newClientName.trim() || !authUser) return;
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients').add({ name: newClientName, createdAt: Date.now() });
+                if (!newClientName.trim()) return;
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients').add({ 
+                    name: newClientName, 
+                    fullName: newClientFullName || newClientName,
+                    createdAt: Date.now() 
+                });
                 setNewClientName('');
+                setNewClientFullName('');
             };
 
-            // MODIFIED: Trigger Modal instead of confirm()
-            const triggerDeleteClient = (client) => {
-                setDeleteConfirm({ type: 'client', id: client.id, title: client.name });
-            };
-
-            const triggerDeleteTask = (task) => {
-                setDeleteConfirm({ type: 'task', id: task.id, title: task.title });
-            };
+            const triggerDeleteClient = (client) => setDeleteConfirm({ type: 'client', id: client.id, title: client.name });
+            const triggerDeleteTask = (task) => setDeleteConfirm({ type: 'task', id: task.id, title: task.title });
 
             const executeDelete = async () => {
                 if (!deleteConfirm) return;
-                
                 if (deleteConfirm.type === 'client') {
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('clients').doc(deleteConfirm.id).delete();
                     if (selectedClientId === deleteConfirm.id) setSelectedClientId(null);
@@ -323,14 +546,15 @@
 
             const handleAddTask = async (e) => {
                 e.preventDefault();
-                if (!newTaskTitle.trim() || !selectedClientId || !authUser) return;
+                if (!newTaskTitle.trim()) return;
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').add({
                     clientId: selectedClientId,
                     title: newTaskTitle,
                     price: parseInt(newTaskPrice) || 0,
-                    deadline: newTaskDeadline || null,
+                    deadline: newTaskDeadline || null, // Stores full ISO date string including time
                     description: newTaskDesc || '',
                     status: 'pending',
+                    paymentStatus: 'unpaid', 
                     gdriveLink: '',
                     createdAt: Date.now()
                 });
@@ -338,7 +562,6 @@
             };
 
             const handleCompleteTask = (task) => { setEditingTask(task); setGdriveLink(task.gdriveLink || ''); };
-
             const saveTaskCompletion = async () => {
                 if (!editingTask) return;
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(editingTask.id).update({
@@ -348,20 +571,13 @@
                 });
                 setEditingTask(null); setGdriveLink('');
             };
+            const handleRevertTask = async (task) => await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(task.id).update({ status: 'pending', completedAt: null });
             
-            const handleRevertTask = async (task) => {
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(task.id).update({ status: 'pending', completedAt: null });
-            };
-
-            const handleDeleteTask = async (taskId) => {
-                if(!confirm("Yakin hapus tugas ini?")) return;
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tasks').doc(taskId).delete();
-            };
-
-            const handleLogout = () => {
-                setUser(null);
-                setSelectedClientId(null);
+            const handleLogout = () => { 
+                setUser(null); 
+                setSelectedClientId(null); 
                 setViewMode('pending');
+                localStorage.removeItem('jozen_user');
             };
 
             // --- FILTERING & STATS ---
@@ -371,96 +587,105 @@
             }, [tasks, selectedClientId, viewMode]);
 
             const stats = useMemo(() => {
-                if (!selectedClientId) return { pending: 0, completed: 0 };
+                if (!selectedClientId) return { pendingWork: 0, unpaidBill: 0, verifyingBill: 0 };
                 const clientTasks = tasks.filter(t => t.clientId === selectedClientId);
                 return {
-                    pending: clientTasks.filter(t => t.status === 'pending').reduce((acc, curr) => acc + (curr.price || 0), 0),
-                    completed: clientTasks.filter(t => t.status === 'completed').reduce((acc, curr) => acc + (curr.price || 0), 0)
+                    pendingWork: clientTasks.filter(t => t.status === 'pending').reduce((acc, curr) => acc + (curr.price || 0), 0),
+                    unpaidBill: clientTasks.filter(t => (!t.paymentStatus || t.paymentStatus === 'unpaid')).reduce((acc, curr) => acc + (curr.price || 0), 0),
+                    verifyingBill: clientTasks.filter(t => t.paymentStatus === 'verifying').reduce((acc, curr) => acc + (curr.price || 0), 0)
                 };
             }, [tasks, selectedClientId]);
 
+            const todaysIncome = useMemo(() => {
+                if (!user || user.role !== 'admin') return 0;
+                
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                
+                return tasks
+                    .filter(t => t.paymentStatus === 'paid' && t.paidAt && t.paidAt >= todayStart)
+                    .reduce((sum, t) => sum + (parseInt(t.price) || 0), 0);
+            }, [tasks, user]);
+
             const selectedClient = clients.find(c => c.id === selectedClientId);
 
-            // TAMPILAN ERROR AUTH
+            const getPaymentBadge = (status) => {
+                switch(status) {
+                    case 'paid': return <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1"><Check size={10} /> Lunas</span>;
+                    case 'verifying': return <span className="bg-yellow-500/20 text-yellow-400 text-[10px] px-2 py-0.5 rounded border border-yellow-500/30 flex items-center gap-1"><Clock size={10} /> Cek Mutasi</span>;
+                    default: return <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded border border-red-500/30">Belum Bayar</span>;
+                }
+            };
+
             if (authError) {
                 return (
                     <div className="min-h-screen flex items-center justify-center bg-[#09090b] p-6 text-center">
                         <div className="max-w-md glass-panel p-8 rounded-2xl border border-red-900/50">
-                            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                                <AlertTriangle size={32} className="text-red-500" />
-                            </div>
-                            <h1 className="text-red-500 text-2xl font-bold mb-4">Fitur Login Bermasalah</h1>
+                            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20"><AlertTriangle size={32} className="text-red-500" /></div>
+                            <h1 className="text-red-500 text-2xl font-bold mb-4">Koneksi Bermasalah</h1>
                             <p className="text-zinc-400 text-sm mb-6">Error Code: <span className="font-mono bg-zinc-900 px-1 py-0.5 rounded text-red-300">{authError.code}</span></p>
-                            
-                            <div className="bg-zinc-900/50 p-4 rounded-xl text-left text-sm text-zinc-400 space-y-3 border border-zinc-800">
-                                <p className="text-white font-semibold">Solusi Cepat:</p>
-                                {authError.code === 'auth/configuration-not-found' ? (
-                                    <ol className="list-decimal pl-5 space-y-1">
-                                        <li>Buka <a href="https://console.firebase.google.com" target="_blank" className="text-indigo-400 hover:underline">Firebase Console</a></li>
-                                        <li>Pilih project <strong>Jozen</strong>.</li>
-                                        <li>Ke menu <strong>Build</strong> &gt; <strong>Authentication</strong>.</li>
-                                        <li>Klik <strong>Get Started</strong>.</li>
-                                        <li>Aktifkan <strong>Anonymous</strong> &gt; <strong>Enable</strong>.</li>
-                                    </ol>
-                                ) : (
-                                    <p>Pastikan Anda sudah mengaktifkan <strong>Anonymous Auth</strong> di Firebase Console. Jika error berlanjut, refresh halaman.</p>
-                                )}
-                            </div>
-                            
-                            <button onClick={() => window.location.reload()} className="mt-8 bg-indigo-600 w-full py-3 rounded-xl hover:bg-indigo-500 transition-colors text-white font-bold shadow-lg shadow-indigo-900/20">
-                                Sudah Diperbaiki? Refresh
-                            </button>
+                            <button onClick={() => window.location.reload()} className="mt-8 bg-indigo-600 w-full py-3 rounded-xl hover:bg-indigo-500 transition-colors text-white font-bold shadow-lg shadow-indigo-900/20">Refresh Halaman</button>
                         </div>
                     </div>
                 )
             }
-
-            if (!user) return <LoginScreen onLogin={setUser} clients={clients} />;
+            if (!user) return <LoginScreen onLogin={handleUserLogin} clients={clients} />;
 
             return (
                 <div className="flex h-screen overflow-hidden bg-[#09090b] text-zinc-100 font-sans selection:bg-indigo-500/30">
                     
-                    {/* SIDEBAR */}
+                    {/* SIDEBAR ADMIN */}
                     {user.role === 'admin' && (
                         <aside className="w-72 bg-[#09090b] border-r border-zinc-800 flex flex-col hidden md:flex relative z-20">
                             <div className="p-8 pb-4">
                                 <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent inline-block">Jozen</h2>
-                                <div className="mt-1 flex items-center gap-2 text-xs font-mono text-indigo-400">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> ADMIN MODE
+                                <div className="mt-1 flex items-center gap-2 text-xs font-mono text-indigo-400"><span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> ADMIN MODE</div>
+                            </div>
+
+                            {/* PENDAPATAN HARI INI */}
+                            <div className="px-8 mb-6">
+                                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500/10 rounded-bl-full -mr-2 -mt-2 transition-all group-hover:bg-emerald-500/20"></div>
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                                        <TrendingUp size={14} className="text-emerald-500" />
+                                        Pendapatan Hari Ini
+                                    </div>
+                                    <p className="text-2xl font-bold text-emerald-400 font-mono tracking-tight">{formatRupiah(todaysIncome)}</p>
                                 </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
                                 <div className="px-4 mb-2"><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Clients Database</span></div>
-                                <form onSubmit={handleAddClient} className="mx-2 mb-6">
-                                    <div className="flex items-center bg-zinc-900 rounded-lg border border-zinc-800 focus-within:border-indigo-500/50 transition-all">
-                                        <input type="text" placeholder="Add Client..." className="flex-1 bg-transparent border-none text-sm px-3 py-2.5 text-zinc-300 outline-none" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
-                                        <button type="submit" className="pr-3 text-zinc-500 hover:text-indigo-400"><Plus size={16} /></button>
+                                <form onSubmit={handleAddClient} className="mx-2 mb-6 bg-zinc-900 p-2 rounded-xl border border-zinc-800">
+                                    <div className="space-y-2">
+                                        <input type="text" placeholder="Nama Akun (Login)..." className="w-full bg-transparent border-b border-zinc-800 text-sm px-2 py-1.5 text-zinc-300 outline-none focus:border-indigo-500/50 transition-colors" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
+                                        <div className="flex items-center">
+                                            <input type="text" placeholder="Nama Lengkap (Opsional)..." className="flex-1 bg-transparent border-none text-sm px-2 py-1.5 text-zinc-300 outline-none" value={newClientFullName} onChange={(e) => setNewClientFullName(e.target.value)} />
+                                            <button type="submit" className="text-zinc-500 hover:text-indigo-400 p-1"><Plus size={16} /></button>
+                                        </div>
                                     </div>
                                 </form>
-
-                                {clients.length === 0 ? <div className="px-4 py-8 text-center"><p className="text-zinc-600 text-sm">No clients.</p></div> : 
-                                    clients.map(client => (
-                                        <div key={client.id} onClick={() => setSelectedClientId(client.id)} className={`group relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 border ${selectedClientId === client.id ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-semibold shadow-lg' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
-                                            <div className="flex items-center gap-3 truncate">
-                                                <div className={`p-1.5 rounded-md ${selectedClientId === client.id ? 'bg-zinc-950/10 text-zinc-900' : 'bg-zinc-900 text-zinc-600 group-hover:text-zinc-400'}`}><Users size={14} /></div>
-                                                <span className="truncate text-sm">{client.name}</span>
+                                {clients.map(client => (
+                                    <div key={client.id} onClick={() => setSelectedClientId(client.id)} className={`group relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 border ${selectedClientId === client.id ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-semibold shadow-lg' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}>
+                                        <div className="flex items-center gap-3 truncate">
+                                            <div className={`p-1.5 rounded-md ${selectedClientId === client.id ? 'bg-zinc-950/10 text-zinc-900' : 'bg-zinc-900 text-zinc-600 group-hover:text-zinc-400'}`}><Users size={14} /></div>
+                                            <div className="flex flex-col truncate">
+                                                <span className="truncate text-sm leading-tight">{client.fullName || client.name}</span>
+                                                <span className="truncate text-[10px] text-zinc-500 leading-tight">@{client.name}</span>
                                             </div>
-                                            <button onClick={(e) => { e.stopPropagation(); triggerDeleteClient(client); }} className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-md transition-all ${selectedClientId === client.id ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/20 text-red-500'}`}><Trash2 size={14} /></button>
                                         </div>
-                                    ))
-                                }
+                                        <button onClick={(e) => { e.stopPropagation(); triggerDeleteClient(client); }} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-900/20 text-red-500 rounded"><Trash2 size={14} /></button>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="p-4 border-t border-zinc-800 bg-[#09090b]">
-                                <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 w-full transition-colors text-sm font-medium"><LogOut size={18} /> Sign Out</button>
-                            </div>
+                            <div className="p-4 border-t border-zinc-800"><button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:bg-zinc-900 w-full text-sm font-medium"><LogOut size={18} /> Sign Out</button></div>
                         </aside>
                     )}
 
                     {/* MAIN CONTENT */}
                     <main className="flex-1 flex flex-col bg-[#09090b] relative z-10 w-full">
                         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-zinc-900/50 to-transparent pointer-events-none"></div>
-
+                        
                         {/* Mobile Header */}
                         <div className="md:hidden p-4 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800 flex justify-between items-center sticky top-0 z-50">
                             <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Jozen</span>
@@ -475,201 +700,216 @@
                             </div>
                         ) : (
                             <>
-                                {/* HEADER DASHBOARD */}
                                 <header className="p-6 md:p-8 pb-0 flex flex-col gap-6 relative">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                         <div>
-                                            <div className="text-xs font-semibold text-indigo-400 mb-1 tracking-wide">Selamat Datang, {user.name} 👋</div>
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h1 className="text-3xl font-bold text-white tracking-tight">{selectedClient?.name}</h1>
-                                                {user.role === 'client' && <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-wider">MY DASHBOARD</span>}
+                                            <div className="text-xs font-semibold text-indigo-400 mb-1 tracking-wide">
+                                                Selamat Datang, {user.role === 'admin' ? user.fullName : (user.id === selectedClient?.id ? user.fullName : selectedClient?.name)} 👋
                                             </div>
+                                            <h1 className="text-3xl font-bold text-white tracking-tight mb-1">{selectedClient?.fullName || selectedClient?.name}</h1>
                                             <p className="text-sm text-zinc-500">Project Overview</p>
                                         </div>
                                         
-                                        {/* STATS CARD */}
-                                        <div className="flex gap-3 items-start">
-                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-indigo-500">
-                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Estimasi (Pending)</p>
-                                                <p className="text-sm font-mono text-indigo-400">{formatRupiah(stats.pending)}</p>
-                                            </div>
-                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-emerald-500">
-                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Total (Done)</p>
-                                                <p className="text-sm font-mono text-emerald-400">{formatRupiah(stats.completed)}</p>
-                                            </div>
-                                            {/* TOMBOL LOGOUT CLIENT (DESKTOP) */}
+                                        <div className="flex flex-wrap gap-3 items-center">
+                                            {/* PAY NOW BUTTON FOR CLIENT */}
                                             {user.role === 'client' && (
-                                                <button onClick={handleLogout} className="bg-zinc-800 p-4 rounded-xl hover:bg-zinc-700 text-zinc-400 border border-zinc-700 transition-colors" title="Keluar">
-                                                    <LogOut size={20} />
+                                                <button onClick={openPaymentModal} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/20 flex items-center gap-2 animate-pulse">
+                                                    <CreditCard size={18} /> Bayar Sekarang
                                                 </button>
+                                            )}
+                                            
+                                            {/* TAGIHAN (UNPAID) */}
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-red-500">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Tagihan</p>
+                                                <p className="text-sm font-mono text-red-400">{formatRupiah(stats.unpaidBill)}</p>
+                                            </div>
+
+                                            {/* PENGECEKAN (VERIFYING) */}
+                                            {stats.verifyingBill > 0 && (
+                                                <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-yellow-500">
+                                                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Pengecekan</p>
+                                                    <p className="text-sm font-mono text-yellow-400">{formatRupiah(stats.verifyingBill)}</p>
+                                                </div>
+                                            )}
+
+                                            {/* ON GOING */}
+                                            <div className="glass-panel px-4 py-2 rounded-xl border-l-2 border-indigo-500">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">On Going</p>
+                                                <p className="text-sm font-mono text-indigo-400">{formatRupiah(stats.pendingWork)}</p>
+                                            </div>
+                                            
+                                            {/* LOGOUT CLIENT DESKTOP */}
+                                            {user.role === 'client' && (
+                                                <button onClick={handleLogout} className="bg-zinc-800 p-3 rounded-xl hover:bg-zinc-700 text-zinc-400 border border-zinc-700 hidden md:block" title="Keluar"><LogOut size={20} /></button>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* TABS */}
                                     <div className="flex bg-zinc-900/80 p-1.5 rounded-xl border border-zinc-800/50 backdrop-blur-sm self-start">
-                                        <button onClick={() => setViewMode('pending')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'pending' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                                            <Clock size={16} className={viewMode === 'pending' ? 'text-indigo-400' : ''} /> Ongoing
-                                        </button>
-                                        <button onClick={() => setViewMode('completed')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'completed' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                                            <CheckCircle2 size={16} className={viewMode === 'completed' ? 'text-emerald-400' : ''} /> Done
-                                        </button>
+                                        <button onClick={() => setViewMode('pending')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'pending' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}><Clock size={16} /> Ongoing</button>
+                                        <button onClick={() => setViewMode('completed')} className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${viewMode === 'completed' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}><CheckCircle2 size={16} /> Done</button>
                                     </div>
                                 </header>
 
                                 <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6 pb-20">
-                                    {/* ADD TASK FORM (ADMIN ONLY) */}
+                                    {/* ADMIN ADD TASK */}
                                     {user.role === 'admin' && viewMode === 'pending' && (
                                         <form onSubmit={handleAddTask} className="glass-panel p-3 rounded-2xl mb-8 flex flex-col gap-3 shadow-lg shadow-black/20">
                                             <div className="flex flex-col md:flex-row gap-3">
                                                 <input type="text" placeholder="Tugas apa nih?" className="flex-[2] bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
                                                 <input type="number" placeholder="Harga (Rp)" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm font-mono border border-transparent focus:border-indigo-500/50" value={newTaskPrice} onChange={(e) => setNewTaskPrice(e.target.value)} />
-                                                <div className="flex-1 relative">
-                                                    <input type="date" className="w-full bg-zinc-900/50 rounded-xl p-3 px-4 text-white outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} />
-                                                </div>
+                                                {/* UPDATE: Input DateTime Local */}
+                                                <input type="datetime-local" className="flex-1 bg-zinc-900/50 rounded-xl p-3 px-4 text-white outline-none text-sm border border-transparent focus:border-indigo-500/50" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} />
                                             </div>
-                                            {/* Deskripsi (Optional) */}
-                                            <textarea 
-                                                placeholder="Catatan / Deskripsi (Opsional)" 
-                                                className="w-full bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50 resize-none h-20"
-                                                value={newTaskDesc}
-                                                onChange={(e) => setNewTaskDesc(e.target.value)}
-                                            ></textarea>
-                                            
+                                            <textarea placeholder="Catatan / Deskripsi (Opsional)" className="w-full bg-zinc-900/50 rounded-xl p-3 px-4 text-white placeholder-zinc-600 outline-none text-sm border border-transparent focus:border-indigo-500/50 resize-none h-16" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)}></textarea>
                                             <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white w-full py-2.5 rounded-xl font-medium transition-all text-sm shadow-lg shadow-indigo-900/30">Add Task</button>
                                         </form>
                                     )}
 
-                                    {/* TASK LIST */}
                                     <div className="space-y-3">
-                                        {filteredTasks.length === 0 ? (
-                                            <div className="text-center py-20 border border-dashed border-zinc-800 rounded-3xl opacity-50"><p className="text-zinc-500 text-sm">Kosong melompong.</p></div>
-                                        ) : (
+                                        {filteredTasks.length === 0 ? <div className="text-center py-20 border border-dashed border-zinc-800 rounded-3xl opacity-50"><p className="text-zinc-500 text-sm">Kosong melompong.</p></div> : 
                                             filteredTasks.map(task => {
-                                                const daysLeft = getDaysRemaining(task.deadline);
-                                                let dateColor = "text-zinc-500";
-                                                let dateText = "";
-                                                
-                                                if (task.status === 'pending' && daysLeft !== null) {
-                                                    if (daysLeft < 0) { dateColor = "text-red-400"; dateText = `Telat ${Math.abs(daysLeft)} hari`; }
-                                                    else if (daysLeft === 0) { dateColor = "text-amber-400"; dateText = "Deadline Hari Ini!"; }
-                                                    else if (daysLeft <= 2) { dateColor = "text-amber-400"; dateText = `${daysLeft} Hari Lagi`; }
-                                                    else { dateColor = "text-emerald-400"; dateText = `${daysLeft} Hari Lagi`; }
-                                                }
-
                                                 return (
-                                                    <div key={task.id} className="group bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/50 hover:border-zinc-700/50 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-200">
+                                                    <div key={task.id} className="bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/50 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all">
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex items-start gap-4">
-                                                                <div className={`mt-1 p-2 rounded-full ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                                                                    {task.status === 'completed' ? <CheckCircle2 size={18} /> : <FileText size={18} />}
-                                                                </div>
+                                                            <div className="flex items-start gap-3">
+                                                                <div className={`mt-1 p-2 rounded-full ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>{task.status === 'completed' ? <CheckCircle2 size={18} /> : <FileText size={18} />}</div>
                                                                 <div>
-                                                                    <h3 className={`font-medium text-base truncate pr-4 ${task.status === 'completed' ? 'text-zinc-500 line-through decoration-zinc-700' : 'text-zinc-200'}`}>{task.title}</h3>
-                                                                    
-                                                                    {/* DESKRIPSI (JIKA ADA) */}
-                                                                    {task.description && (
-                                                                        <p className="text-zinc-500 text-xs mt-1 leading-relaxed max-w-lg">{task.description}</p>
-                                                                    )}
-
-                                                                    <div className="flex flex-wrap items-center gap-3 mt-3 text-xs font-medium">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 className={`font-medium text-base ${task.status === 'completed' ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>{task.title}</h3>
+                                                                        {getPaymentBadge(task.paymentStatus)}
+                                                                    </div>
+                                                                    {task.description && <p className="text-zinc-500 text-xs mt-1 max-w-lg">{task.description}</p>}
+                                                                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-medium">
                                                                         {task.price > 0 && <span className="text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded">{formatRupiah(task.price)}</span>}
                                                                         
-                                                                        {task.deadline && task.status === 'pending' && (
-                                                                            <span className={`flex items-center gap-1 ${dateColor} bg-zinc-800/50 px-2 py-0.5 rounded border border-white/5`}>
-                                                                                <Calendar size={12} /> {dateText} ({new Date(task.deadline).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})})
-                                                                            </span>
-                                                                        )}
-                                                                        
-                                                                        <span className="text-zinc-600">{new Date(task.createdAt).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}</span>
+                                                                        {/* UPDATE: Use CountdownTimer Component */}
+                                                                        {task.status === 'pending' && <CountdownTimer deadline={task.deadline} />}
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            {task.status === 'completed' && task.gdriveLink && <div className="mt-3 ml-11"><a href={task.gdriveLink} target="_blank" className="text-indigo-400 hover:text-indigo-300 text-sm font-medium hover:underline flex items-center gap-2"><ExternalLink size={14} /> Download File</a></div>}
+                                                        </div>
 
-                                                            {task.status === 'completed' && task.gdriveLink && (
-                                                                <div className="mt-4 ml-12">
-                                                                    <a href={task.gdriveLink.startsWith('http') ? task.gdriveLink : `https://${task.gdriveLink}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium hover:underline decoration-indigo-500/30 underline-offset-4 transition-all">
-                                                                        <ExternalLink size={14} /> Download File / Link
-                                                                    </a>
+                                                        {user.role === 'admin' && (
+                                                            <div className="flex flex-col items-end gap-2">
+                                                                <div className="flex gap-2">
+                                                                    {task.status === 'pending' ? 
+                                                                        <button onClick={() => handleCompleteTask(task)} className="bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-bold shadow-lg">Finish</button> :
+                                                                        <button onClick={() => handleRevertTask(task)} className="text-xs text-zinc-600 hover:text-zinc-400 px-2">Undo</button>
+                                                                    }
+                                                                    <button onClick={() => triggerDeleteTask(task)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg"><Trash2 size={16} /></button>
                                                                 </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="flex items-center gap-3 w-full md:w-auto justify-end pl-12 md:pl-0">
-                                                            {user.role === 'admin' && (
-                                                                <>
-                                                                    {task.status === 'pending' ? (
-                                                                        <button onClick={() => handleCompleteTask(task)} className="flex items-center gap-2 bg-white text-black hover:bg-zinc-200 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-white/5">Finish <ChevronRight size={14} /></button>
-                                                                    ) : (
-                                                                        <button onClick={() => handleRevertTask(task)} className="text-xs text-zinc-600 hover:text-zinc-400 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors">Undo</button>
-                                                                    )}
-                                                                    {/* TOMBOL DELETE FIX */}
-                                                                    <button onClick={() => triggerDeleteTask(task)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                                                                </>
-                                                            )}
-                                                            {user.role === 'client' && task.status === 'completed' && !task.gdriveLink && (
-                                                                <span className="text-xs bg-amber-500/10 text-amber-500 px-3 py-1 rounded-full border border-amber-500/20">Processing File...</span>
-                                                            )}
-                                                        </div>
+                                                                {task.paymentStatus === 'verifying' && (
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <button onClick={() => triggerApprovePayment(task)} className="bg-emerald-600/20 text-emerald-400 border border-emerald-600/50 px-3 py-1 rounded text-xs hover:bg-emerald-600/30">Terima</button>
+                                                                        <button onClick={() => triggerRejectPayment(task)} className="bg-red-600/20 text-red-400 border border-red-600/50 px-3 py-1 rounded text-xs hover:bg-red-600/30">Tolak</button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })
-                                        )}
+                                        }
                                     </div>
                                 </div>
                             </>
                         )}
-                        
-                        {/* Modal Task Completion */}
+
+                        {showPaymentModal && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[80]">
+                                <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-md shadow-2xl border border-zinc-700 animation-fade-in-up">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><CreditCard className="text-indigo-500" /> Pembayaran</h3>
+                                        <button onClick={() => setShowPaymentModal(false)} className="text-zinc-500 hover:text-white"><span className="text-2xl">&times;</span></button>
+                                    </div>
+
+                                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 mb-6">
+                                        <p className="text-zinc-400 text-sm">Pilih tugas yang ingin dibayar:</p>
+                                        {tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid')).length === 0 ? (
+                                            <p className="text-center text-zinc-600 text-sm py-4 italic">Tidak ada tagihan aktif.</p>
+                                        ) : (
+                                            tasks.filter(t => t.clientId === selectedClientId && (!t.paymentStatus || t.paymentStatus === 'unpaid')).map(task => (
+                                                <label key={task.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${selectedTasksForPayment.includes(task.id) ? 'bg-indigo-900/20 border-indigo-500/50' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <input type="checkbox" className="custom-checkbox" checked={selectedTasksForPayment.includes(task.id)} onChange={() => toggleTaskSelection(task.id)} />
+                                                        <span className="text-sm font-medium text-zinc-200">{task.title}</span>
+                                                    </div>
+                                                    <span className="font-mono text-xs text-zinc-400">{formatRupiah(task.price)}</span>
+                                                </label>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 mb-6">
+                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-zinc-800">
+                                            <span className="text-zinc-400 text-sm">Total Bayar</span>
+                                            <span className="text-xl font-bold text-indigo-400 font-mono">{formatRupiah(calculateSelectedTotal())}</span>
+                                        </div>
+                                        <div className="text-center space-y-1">
+                                            <p className="text-xs text-zinc-500 uppercase tracking-widest">Transfer ke</p>
+                                            <p className="text-white font-bold text-lg">{BANK_INFO.bank}</p>
+                                            <p className="text-2xl font-mono text-white tracking-wider my-2 select-all bg-zinc-800 rounded py-1 cursor-text" onClick={() => navigator.clipboard.writeText(BANK_INFO.number)}>{BANK_INFO.number}</p>
+                                            <p className="text-sm text-zinc-400">a.n {BANK_INFO.name}</p>
+                                        </div>
+                                    </div>
+
+                                    <button onClick={handleConfirmTransfer} disabled={selectedTasksForPayment.length === 0} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-900/30">
+                                        Sudah Transfer & Konfirmasi
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {paymentActionConfirm && (
+                            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+                                <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-zinc-800 animation-fade-in-up text-center">
+                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 border ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-900/30 border-emerald-500/20 text-emerald-500' : 'bg-red-900/30 border-red-500/20 text-red-500'}`}>
+                                        {paymentActionConfirm.type === 'approve' ? <Check size={24} /> : <XCircle size={24} />}
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white mb-2">{paymentActionConfirm.type === 'approve' ? 'Terima Pembayaran?' : 'Tolak Pembayaran?'}</h3>
+                                    <p className="text-zinc-400 text-sm mb-6">
+                                        Untuk tugas: <strong className="text-white">{paymentActionConfirm.task.title}</strong><br/>
+                                        Sebesar: <span className="font-mono text-indigo-400">{formatRupiah(paymentActionConfirm.task.price)}</span>
+                                    </p>
+                                    
+                                    <div className="flex gap-3 justify-center">
+                                        <button onClick={() => setPaymentActionConfirm(null)} className="px-5 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl text-sm font-medium transition-colors">
+                                            Batal
+                                        </button>
+                                        <button onClick={executePaymentAction} className={`px-5 py-2.5 text-white rounded-xl font-medium transition-colors text-sm shadow-lg ${paymentActionConfirm.type === 'approve' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-red-600 hover:bg-red-500 shadow-red-900/40'}`}>
+                                            {paymentActionConfirm.type === 'approve' ? 'Ya, Terima' : 'Ya, Tolak'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {editingTask && (
                             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
                                 <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-md shadow-2xl border border-zinc-800 animation-fade-in-up">
                                     <h3 className="text-lg font-bold text-white mb-1">Submit Result</h3>
                                     <p className="text-zinc-500 text-sm mb-6">Attach file link for <span className="text-indigo-400">{editingTask.title}</span></p>
-                                    <div className="mb-6">
-                                        <div className="flex items-center glass-input rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
-                                            <div className="pl-4 text-zinc-500"><ExternalLink size={18} /></div>
-                                            <input type="text" className="w-full bg-transparent p-4 text-white outline-none placeholder-zinc-600 text-sm" placeholder="Paste GDrive / Dropbox Link..." value={gdriveLink} onChange={(e) => setGdriveLink(e.target.value)} autoFocus />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-3">
-                                        <button onClick={() => { setEditingTask(null); setGdriveLink(''); }} className="px-5 py-2.5 text-zinc-400 hover:text-white rounded-xl text-sm font-medium transition-colors">Cancel</button>
-                                        <button onClick={saveTaskCompletion} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors text-sm shadow-lg shadow-indigo-900/40">Mark as Done</button>
-                                    </div>
+                                    <div className="mb-6"><div className="flex items-center glass-input rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all"><div className="pl-4 text-zinc-500"><ExternalLink size={18} /></div><input type="text" className="w-full bg-transparent p-4 text-white outline-none placeholder-zinc-600 text-sm" placeholder="Paste GDrive / Dropbox Link..." value={gdriveLink} onChange={(e) => setGdriveLink(e.target.value)} autoFocus /></div></div>
+                                    <div className="flex justify-end gap-3"><button onClick={() => { setEditingTask(null); setGdriveLink(''); }} className="px-5 py-2.5 text-zinc-400 hover:text-white rounded-xl text-sm font-medium transition-colors">Cancel</button><button onClick={saveTaskCompletion} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors text-sm shadow-lg shadow-indigo-900/40">Mark as Done</button></div>
                                 </div>
                             </div>
                         )}
-
-                        {/* NEW: Modal Delete Confirmation */}
                         {deleteConfirm && (
                             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
                                 <div className="glass-panel bg-[#18181b] p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-zinc-800 animation-fade-in-up text-center">
-                                    <div className="w-14 h-14 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                                        <Trash2 size={24} className="text-red-500" />
-                                    </div>
+                                    <div className="w-14 h-14 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20"><Trash2 size={24} className="text-red-500" /></div>
                                     <h3 className="text-lg font-bold text-white mb-2">Hapus Item Ini?</h3>
-                                    <p className="text-zinc-400 text-sm mb-6">Kamu yakin ingin menghapus <strong className="text-white">{deleteConfirm.title}</strong>? Tindakan ini tidak bisa dibatalkan.</p>
-                                    
-                                    <div className="flex gap-3 justify-center">
-                                        <button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl text-sm font-medium transition-colors">
-                                            Batal
-                                        </button>
-                                        <button onClick={executeDelete} className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors text-sm shadow-lg shadow-red-900/40">
-                                            Ya, Hapus
-                                        </button>
-                                    </div>
+                                    <p className="text-zinc-400 text-sm mb-6">Yakin hapus <strong className="text-white">{deleteConfirm.title}</strong>? Gabisa dibalikin lho.</p>
+                                    <div className="flex gap-3 justify-center"><button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl text-sm font-medium transition-colors">Batal</button><button onClick={executeDelete} className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors text-sm shadow-lg shadow-red-900/40">Ya, Hapus</button></div>
                                 </div>
                             </div>
                         )}
-
                     </main>
                     
-                    {/* LOGOUT BUTTON FOR CLIENT (FLOATING ON MOBILE/DESKTOP ALTERNATIVE) */}
-                    {user.role === 'client' && (
-                        <div className="fixed bottom-6 right-6 z-50 md:hidden">
-                            <button onClick={handleLogout} className="bg-zinc-800 text-white p-4 rounded-full shadow-2xl border border-zinc-700 hover:bg-zinc-700 transition-all"><LogOut size={24} /></button>
-                        </div>
-                    )}
+                    {/* LOGOUT MOBILE */}
+                    {user.role === 'client' && <div className="fixed bottom-6 right-6 z-50 md:hidden"><button onClick={handleLogout} className="bg-zinc-800 text-white p-4 rounded-full shadow-2xl border border-zinc-700 hover:bg-zinc-700 transition-all"><LogOut size={24} /></button></div>}
                 </div>
             );
         };
